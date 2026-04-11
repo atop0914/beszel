@@ -45,14 +45,29 @@ func Run(cfg *config.Config, db *store.Store) {
 func (s *Server) collectionLoop() {
 	ticker := time.NewTicker(s.cfg.CollectionInterval)
 	defer ticker.Stop()
-	for range ticker.C {
-		m, err := s.collector.Collect()
-		if err != nil {
-			log.Printf("collect error: %v", err)
-			continue
-		}
-		if err := s.db.InsertMetrics(m); err != nil {
-			log.Printf("insert error: %v", err)
+	pruneTicker := time.NewTicker(time.Hour)
+	defer pruneTicker.Stop()
+
+	// Prune old data on startup
+	if err := s.db.Prune(7 * 24 * time.Hour); err != nil {
+		log.Printf("prune error: %v", err)
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			m, err := s.collector.Collect()
+			if err != nil {
+				log.Printf("collect error: %v", err)
+				continue
+			}
+			if err := s.db.InsertMetrics(m); err != nil {
+				log.Printf("insert error: %v", err)
+			}
+		case <-pruneTicker.C:
+			if err := s.db.Prune(7 * 24 * time.Hour); err != nil {
+				log.Printf("prune error: %v", err)
+			}
 		}
 	}
 }
