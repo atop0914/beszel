@@ -296,11 +296,12 @@ async function loadContainers() {
   el.innerHTML = containers.map(c => {
     const cpu = (c.cpu_percent || 0).toFixed(1);
     const mem = (c.memory_percent || 0).toFixed(1);
+    const memUsage = fmtBytes(c.memory_usage || 0);
     return '<div class="container-item">' +
       '<span class="container-name">' + (c.container_name || c.container_id) + '</span>' +
       '<div class="container-stats">' +
         '<span>CPU: ' + cpu + '%</span>' +
-        '<span>Mem: ' + mem + '%</span>' +
+        '<span>Mem: ' + mem + '% (' + memUsage + ')</span>' +
       '</div>' +
     '</div>';
   }).join('');

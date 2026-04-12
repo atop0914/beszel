@@ -13,9 +13,10 @@ import (
 )
 
 type Server struct {
-	cfg       *config.Config
-	db        *store.Store
-	collector *collector.SystemCollector
+	cfg           *config.Config
+	db            *store.Store
+	collector     *collector.SystemCollector
+	dockerCollector *collector.DockerCollector
 }
 
 func Run(cfg *config.Config, db *store.Store) {
@@ -24,6 +25,17 @@ func Run(cfg *config.Config, db *store.Store) {
 		log.Fatalf("create collector: %v", err)
 	}
 	s := &Server{cfg: cfg, db: db, collector: col}
+
+	// Initialize Docker collector if enabled
+	if cfg.DockerEnabled {
+		dc, err := collector.NewDockerCollector()
+		if err != nil {
+			log.Printf("docker collector init failed (docker may not be available): %v", err)
+		} else {
+			s.dockerCollector = dc
+			log.Println("docker collector initialized")
+		}
+	}
 
 	// Background collection loop
 	go s.collectionLoop()
@@ -62,7 +74,21 @@ func (s *Server) collectionLoop() {
 				continue
 			}
 			if err := s.db.InsertMetrics(m); err != nil {
-				log.Printf("insert error: %v", err)
+				log.Printf("insert metrics error: %v", err)
+			}
+
+			// Collect Docker container stats if available
+			if s.dockerCollector != nil {
+				containers, err := s.dockerCollector.CollectContainerStats()
+				if err != nil {
+					log.Printf("docker collect error: %v", err)
+				} else {
+					for _, c := range containers {
+						if err := s.db.InsertContainerMetrics(c); err != nil {
+							log.Printf("insert container metrics error: %v", err)
+						}
+					}
+				}
 			}
 		case <-pruneTicker.C:
 			if err := s.db.Prune(7 * 24 * time.Hour); err != nil {
