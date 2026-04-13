@@ -1,9 +1,30 @@
+# Beszel Configuration
+# All options are optional and have sensible defaults.
+
+# HTTP server port (default: 8080)
 port: 8080
+
+# Path to SQLite database (default: ./beszel.db)
 db_path: ./beszel.db
+
+# How often to collect metrics (default: 30s)
 collection_interval: 30s
+
+# Enable Docker container stats collection (default: true)
 docker_enabled: true
+
+# Alert thresholds — checked after each collection
 alerts:
+  # CPU usage percentage threshold (0-100, default: 80)
   cpu_threshold: 80
+
+  # Memory usage percentage threshold (0-100, default: 85)
   memory_threshold: 85
+
+  # Disk usage percentage threshold (0-100, default: 90)
   disk_threshold: 90
+
+  # Optional webhook URL — POST JSON alert body on threshold breach
+  # Example: https://your-webhook-endpoint.com/alerts
+  # Leave empty to disable webhooks (alerts will only be logged).
   webhook_url: ""

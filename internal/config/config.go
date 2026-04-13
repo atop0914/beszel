@@ -60,3 +60,26 @@ func Default() *Config {
 		},
 	}
 }
+
+// Validate checks the configuration for errors.
+func (c *Config) Validate() error {
+	if c.Port < 1 || c.Port > 65535 {
+		return fmt.Errorf("port must be between 1 and 65535, got %d", c.Port)
+	}
+	if c.DBPath == "" {
+		return fmt.Errorf("db_path is required")
+	}
+	if c.CollectionInterval < time.Second {
+		return fmt.Errorf("collection_interval must be at least 1 second")
+	}
+	if c.Alerts.CPUThreshold < 0 || c.Alerts.CPUThreshold > 100 {
+		return fmt.Errorf("alerts.cpu_threshold must be between 0 and 100")
+	}
+	if c.Alerts.MemoryThreshold < 0 || c.Alerts.MemoryThreshold > 100 {
+		return fmt.Errorf("alerts.memory_threshold must be between 0 and 100")
+	}
+	if c.Alerts.DiskThreshold < 0 || c.Alerts.DiskThreshold > 100 {
+		return fmt.Errorf("alerts.disk_threshold must be between 0 and 100")
+	}
+	return nil
+}

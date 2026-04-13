@@ -57,6 +57,23 @@ func main() {
 		}
 		log.Println("collection complete")
 
+	case "config":
+		configCmd := flag.NewFlagSet("config", flag.ExitOnError)
+		configCmd.Parse(os.Args[2:])
+		cfg, err := config.Load("beszel.yaml")
+		if err != nil {
+			log.Fatalf("failed to load config: %v", err)
+		}
+		if err := cfg.Validate(); err != nil {
+			log.Fatalf("config validation failed: %v", err)
+		}
+		log.Printf("config is valid (port=%d, db=%s, interval=%v)", cfg.Port, cfg.DBPath, cfg.CollectionInterval)
+		log.Printf("alerts: cpu=%.0f%%, memory=%.0f%%, disk=%.0f%%",
+			cfg.Alerts.CPUThreshold, cfg.Alerts.MemoryThreshold, cfg.Alerts.DiskThreshold)
+		if cfg.Alerts.WebhookURL != "" {
+			log.Printf("alerts webhook: %s", cfg.Alerts.WebhookURL)
+		}
+
 	default:
 		usage()
 		os.Exit(1)
@@ -64,5 +81,5 @@ func main() {
 }
 
 func usage() {
-	log.Println("Usage: beszel [serve|collect-once]")
+	log.Println("Usage: beszel [serve|collect-once|config]")
 }

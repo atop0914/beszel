@@ -7,24 +7,42 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/atop0914/beszel/internal/alerts"
 	"github.com/atop0914/beszel/internal/collector"
 	"github.com/atop0914/beszel/internal/config"
 	"github.com/atop0914/beszel/internal/store"
 )
 
 type Server struct {
-	cfg           *config.Config
-	db            *store.Store
-	collector     *collector.SystemCollector
+	cfg             *config.Config
+	db              *store.Store
+	collector       *collector.SystemCollector
 	dockerCollector *collector.DockerCollector
+	alertManager    *alerts.Manager
 }
 
 func Run(cfg *config.Config, db *store.Store) {
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid config: %v", err)
+	}
+
 	col, err := collector.NewSystemCollector()
 	if err != nil {
 		log.Fatalf("create collector: %v", err)
 	}
 	s := &Server{cfg: cfg, db: db, collector: col}
+
+	// Initialize alert manager
+	alertCfg := cfg.Alerts
+	s.alertManager = alerts.NewManager(
+		fmt.Sprintf("%v", alertCfg.CPUThreshold),
+		fmt.Sprintf("%v", alertCfg.MemoryThreshold),
+		fmt.Sprintf("%v", alertCfg.DiskThreshold),
+		alertCfg.WebhookURL,
+	)
+	if alertCfg.WebhookURL != "" {
+		log.Printf("alerts webhook enabled: %s", alertCfg.WebhookURL)
+	}
 
 	// Initialize Docker collector if enabled
 	if cfg.DockerEnabled {
@@ -76,6 +94,9 @@ func (s *Server) collectionLoop() {
 			if err := s.db.InsertMetrics(m); err != nil {
 				log.Printf("insert metrics error: %v", err)
 			}
+
+			// Check alert thresholds
+			s.alertManager.Check(m)
 
 			// Collect Docker container stats if available
 			if s.dockerCollector != nil {
