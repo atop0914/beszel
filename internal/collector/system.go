@@ -2,12 +2,14 @@ package collector
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"github.com/atop0914/beszel/internal/types"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
+	"github.com/shirou/gopsutil/v4/load"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 )
@@ -15,6 +17,9 @@ import (
 type SystemCollector struct {
 	prevNet  map[string]netIOCounters
 	hostname string
+	os       string
+	platform string
+	kernel   string
 }
 
 type netIOCounters struct {
@@ -30,6 +35,9 @@ func NewSystemCollector() (*SystemCollector, error) {
 	return &SystemCollector{
 		prevNet:  make(map[string]netIOCounters),
 		hostname: hInfo.Hostname,
+		os:       runtime.GOOS,
+		platform: hInfo.Platform,
+		kernel:   hInfo.KernelVersion,
 	}, nil
 }
 
@@ -63,6 +71,23 @@ func (c *SystemCollector) Collect() (*types.Metrics, error) {
 	rx, tx := c.networkDelta()
 	m.NetworkRX = rx
 	m.NetworkTX = tx
+
+	// Host uptime
+	hInfo, err := host.Info()
+	if err == nil {
+		m.Uptime = hInfo.Uptime // seconds since boot
+		m.OS = c.os
+		m.Platform = c.platform
+		m.Kernel = c.kernel
+	}
+
+	// Load average (Linux)
+	loadInfo, err := load.Avg()
+	if err == nil {
+		m.Load1 = loadInfo.Load1
+		m.Load5 = loadInfo.Load5
+		m.Load15 = loadInfo.Load15
+	}
 
 	return m, nil
 }
