@@ -1,0 +1,68 @@
+# .goreleaser.yaml
+# https://goreleaser.com
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: beszel
+    dir: .
+    main: ./cmd/beszel
+    binary: beszel
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - 386
+      - armv6
+      - armv7
+    goarm:
+      - 6
+      - 7
+    ldflags:
+      - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .Commit }}
+      - -X main.date={{ .Date }}
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - beszel.yaml
+      - README.md
+    # Bare binary only, no wrapper scripts
+    strip_binaries:
+      - "*"
+
+checksum:
+  algorithm: sha256
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^lint:"
+      - "^ci:"
+
+release:
+  github:
+    owner: atop0914
+    name: beszel
+  draft: true
